@@ -161,24 +161,37 @@ export class QuickAddComponent extends Component {
       const productFormComponent = productGrid.querySelector('product-form-component');
       const variantPicker = productGrid.querySelector('variant-picker');
       const productPrice = productGrid.querySelector('product-price');
-      const productTitle = document.createElement('a');
-      productTitle.textContent = this.dataset.productTitle || '';
+      const productMedia = productGrid.querySelector('.product-information__media');
 
-      // Make product title as a link to the product page
-      productTitle.href = this.productPageUrl;
+      const productTitleLink = document.createElement('a');
+      productTitleLink.textContent = this.dataset.productTitle || '';
+      productTitleLink.href = this.productPageUrl;
+      productTitleLink.classList.add('link');
+
+      const productTitle = document.createElement('div');
+      productTitle.classList.add('view-product-title');
+      productTitle.appendChild(productTitleLink);
 
       const productHeader = document.createElement('div');
       productHeader.classList.add('product-header');
-
       productHeader.appendChild(productTitle);
+
       if (productPrice) {
         productHeader.appendChild(productPrice);
       }
-      productGrid.appendChild(productHeader);
+
+      // Ensure media gallery is displayed before the product header.
+      if (productMedia) {
+        productGrid.insertBefore(productMedia, productGrid.firstChild);
+      }
+
+      const headerInsertTarget = variantPicker ?? productFormComponent ?? null;
+      productGrid.insertBefore(productHeader, headerInsertTarget);
 
       if (variantPicker) {
-        productGrid.appendChild(variantPicker);
+        productGrid.insertBefore(variantPicker, productFormComponent ?? null);
       }
+
       if (productFormComponent) {
         productGrid.appendChild(productFormComponent);
       }
