@@ -1,0 +1,790 @@
+{% assign product = all_products['silky-patterned-long-kimono'] %}
+
+{% if product %}
+  {%- comment -%} TRIGGER BUTTON (opens popup) {%- endcomment -%}
+  <button
+    type="button"
+    class="x-handle-product-trigger"
+    data-handle-product-open
+    data-handle-product="{{ product.handle }}"
+  >
+    <span class="x-handle-product-trigger__label">View details</span>
+    <span class="x-handle-product-trigger__spinner" aria-hidden="true"></span>
+  </button>
+
+  {%- comment -%} MODAL WRAPPER (hidden by default) {%- endcomment -%}
+  <div class="x-handle-product-modal" data-handle-modal hidden>
+    <div class="x-handle-product-modal__backdrop" data-handle-modal-close></div>
+
+    <div
+      class="x-handle-product-modal__dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="x-handle-product-title-{{ section.id }}"
+    >
+      <button
+        type="button"
+        class="x-handle-product-modal__close"
+        data-handle-modal-close
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+      {%- comment -%} YOUR EXISTING HANDLE COMPONENT LIVES INSIDE THE MODAL {%- endcomment -%}
+      <section class="x-handle-product" data-product-handle="{{ product.handle }}">
+        <div class="x-handle-product__inner">
+          {%- comment -%} MEDIA SLIDER {%- endcomment -%}
+          <div class="x-handle-product__media">
+            <div class="x-handle-product__slider" data-slider>
+              <div class="x-handle-product__track" data-slider-track>
+                {% for media in product.media %}
+                  {% if media.media_type == 'image' %}
+                    <div class="x-handle-product__slide" data-media-id="{{ media.id }}">
+                      {{ media
+                        | image_url: width: 900
+                        | image_tag:
+                          alt: media.alt | escape | default: product.title,
+                          loading: 'lazy',
+                          decoding: 'async'
+                      }}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+
+            <button class="x-handle-product__nav x-handle-product__nav--prev" type="button" data-slider-prev aria-label="Previous image">
+              <svg aria-hidden="true" focusable="false" role="presentation" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button class="x-handle-product__nav x-handle-product__nav--next" type="button" data-slider-next aria-label="Next image">
+              <svg aria-hidden="true" focusable="false" role="presentation" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+
+            <div class="x-handle-product__variant-meta">
+              <small class="x-handle-product__variant-meta-label">Variant ID:</small>
+              <span class="x-handle-product__variant-meta-id" data-variant-id-display></span>
+            </div>
+          </div>
+
+          <div class="x-handle-product__details">
+            {%- comment -%} PRODUCT TITLE {%- endcomment -%}
+            <h1 class="x-handle-product__title" id="x-handle-product-title-{{ section.id }}">
+              {{ product.title }}
+            </h1>
+
+            <div class="x-handle-product__price" data-price>
+              {{ product.selected_or_first_available_variant.price | money }}
+            </div>
+
+            {%- comment -%} VARIANT OPTIONS AS BUTTONS {%- endcomment -%}
+            {% if product.options_with_values.size > 0 %}
+              <div class="x-handle-product__options">
+                {% for option in product.options_with_values %}
+                  <div class="x-handle-product__option" data-option-group-index="{{ forloop.index0 }}">
+                    <div class="x-handle-product__option-name">
+                      {{ option.name }}
+                    </div>
+
+                    <div class="x-handle-product__option-values">
+                      {% for value in option.values %}
+                        {% assign is_selected = false %}
+                        {% if product.selected_or_first_available_variant.options[forloop.parentloop.index0] == value %}
+                          {% assign is_selected = true %}
+                        {% endif %}
+
+                        <button
+                          type="button"
+                          class="x-handle-product__option-button{% if is_selected %} is-active{% endif %}"
+                          data-option-button
+                          data-option-index="{{ forloop.parentloop.index0 }}"
+                          data-option-value="{{ value | escape }}"
+                        >
+                          {{ value }}
+                        </button>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {%- comment -%} ADD TO CART FORM (same flow as rail) {%- endcomment -%}
+            <product-form-component
+              data-section-id="{{ section.id }}"
+              data-product-id="{{ product.id }}"
+              data-quantity-default="1"
+              on:submit="/handleSubmit"
+            >
+              <div class="visually-hidden" ref="liveRegion" aria-live="off"></div>
+
+              <form
+                method="post"
+                action="/cart/add"
+                class="x-handle-product__form"
+                data-type="add-to-cart-form"
+              >
+                <input
+                  type="hidden"
+                  name="id"
+                  value="{{ product.selected_or_first_available_variant.id }}"
+                  ref="variantId"
+                >
+                <input type="hidden" name="quantity" value="1">
+
+                <span class="product-form-text__error hidden" ref="addToCartTextError">
+                  <span class="svg-wrapper product-form-icon--error">
+                    {{- 'icon-error.svg' | inline_asset_content -}}
+                  </span>
+                </span>
+
+                <add-to-cart-component
+                  ref="addToCartButtonContainer"
+                  data-add-to-cart-animation="true"
+                  data-product-variant-media="{{ product.selected_or_first_available_variant.image | default: product.featured_image | image_url: width: 600 }}"
+                  on:click="/handleClick"
+                >
+                  <button
+                    type="submit"
+                    class="button x-handle-product__add-to-cart-button"
+                    ref="addToCartButton"
+                    name="add"
+                    {% unless product.selected_or_first_available_variant.available %}disabled{% endunless %}
+                  >
+                    <span class="x-card__add-icon" aria-hidden="true">+</span>
+                    <span class="visually-hidden add-to-cart-text--default">
+                      {{ 'products.product.add_to_cart' | t }}
+                    </span>
+                    <span class="visually-hidden add-to-cart-text--added" aria-hidden="true">
+                      {{ 'products.product.added' | t }}
+                    </span>
+                  </button>
+                </add-to-cart-component>
+
+                <div ref="acceleratedCheckoutButtonContainer" hidden></div>
+              </form>
+            </product-form-component>
+          </div>
+
+          {%- comment -%} PRODUCT JSON FOR JS {%- endcomment -%}
+          <script type="application/json" data-product-json>
+            {{ product | json }}
+          </script>
+        </div>
+      </section>
+    </div>
+  </div>
+{% endif %}
+<style>
+  .x-handle-product{
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .x-handle-product__inner{
+    display: grid;
+    gap: 24px;
+  }
+
+  /* Desktop layout: 2 columns */
+  @media (min-width: 768px){
+    .x-handle-product__inner{
+      grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+      align-items: flex-start;
+      column-gap: 32px;
+    }
+
+    /* Hard cap to keep the media column narrow */
+    .x-handle-product__media{
+      max-width: 300px;
+    }
+  }
+
+  .x-handle-product__media{
+    position: relative;
+  }
+
+  .x-handle-product__slider{
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .x-handle-product__track{
+    display: flex;
+    transition: transform 0.4s ease;
+    will-change: transform;
+  }
+
+  .x-handle-product__slide{
+    min-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .x-handle-product__slide img{
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+  }
+
+  .x-handle-product__nav{
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: opacity 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+  }
+
+  .x-handle-product__nav svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .x-handle-product__nav:hover {
+    background: rgba(255,255,255,1);
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .x-handle-product__nav:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background: rgba(255,255,255,0.7);
+    transform: translateY(-50%) scale(1); /* Reset hover scale effect */
+  }
+
+  .x-handle-product__nav--prev{ left: 8px; }
+  .x-handle-product__nav--next{ right: 8px; }
+
+  .x-handle-product__price{
+    font-size: 1.4rem;
+    font-weight: 600;
+  }
+
+  /* Optional: details column styling */
+  .x-handle-product__details{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .x-handle-product__title{
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+
+  .x-handle-product__options{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .x-handle-product__option-name{
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .x-handle-product__option-values{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .x-handle-product__option-button{
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.18);
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  }
+
+  .x-handle-product__option-button.is-active{
+    background: #000;
+    color: #fff;
+    border-color: #000;
+    transform: translateY(-1px);
+  }
+
+  .x-handle-product__form {
+    margin-top: 0;
+  }
+
+  .x-handle-product__add-to-cart-button {
+    width: 100%;
+    padding: 12px 24px;
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .x-handle-product__add-to-cart-button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+  }
+
+  /* =========================
+     Modal shell
+     ========================= */
+  .x-handle-product-modal[hidden] {
+    display: none;
+  }
+
+  .x-handle-product-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    pointer-events: none;
+  }
+
+  .x-handle-product-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .x-handle-product-modal__dialog {
+    position: relative;
+    max-width: 960px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 18px 45px rgba(0,0,0,0.24);
+    transform: translateY(12px) scale(0.97);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+    padding: 24px 16px;
+  }
+
+  .x-handle-product-modal.is-open .x-handle-product-modal__backdrop {
+    opacity: 1;
+  }
+
+  .x-handle-product-modal.is-open .x-handle-product-modal__dialog {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  /* Close button */
+  .x-handle-product-modal__close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border: none;
+    background: rgba(0,0,0,0.06);
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  /* =========================
+     Trigger button + spinner
+     ========================= */
+  .x-handle-product-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .x-handle-product-trigger__spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(0,0,0,0.15);
+    border-top-color: #000;
+    display: none;
+    animation: x-handle-spin 0.6s linear infinite;
+  }
+
+  .x-handle-product-trigger.is-loading {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .x-handle-product-trigger.is-loading .x-handle-product-trigger__spinner {
+    display: inline-block;
+  }
+
+  @keyframes x-handle-spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+<script>
+(function() {
+  function initHandleProduct(root) {
+    if (root.dataset.xHandleInitialized === 'true') {
+      return;
+    }
+    root.dataset.xHandleInitialized = 'true';
+
+    const productJsonEl = root.querySelector('[data-product-json]');
+    if (!productJsonEl) return;
+
+    /** @type {any} */
+    let product;
+    try {
+      product = JSON.parse(productJsonEl.textContent);
+    } catch (e) {
+      console.error('x-handle-product: invalid JSON', e);
+      return;
+    }
+
+    const track = root.querySelector('[data-slider-track]');
+    const slides = Array.from(root.querySelectorAll('.x-handle-product__slide'));
+    const prevBtn = root.querySelector('[data-slider-prev]');
+    const nextBtn = root.querySelector('[data-slider-next]');
+    const priceEl = root.querySelector('[data-price]');
+    const optionButtons = Array.from(root.querySelectorAll('[data-option-button]'));
+    const variantIdDisplay = root.querySelector('[data-variant-id-display]');
+
+    const formComp    = root.querySelector('product-form-component');
+    const variantIdInput = formComp && formComp.querySelector('input[name="id"][ref="variantId"]');
+    const atcButton      = formComp && formComp.querySelector('[ref="addToCartButton"]');
+    const atcComponent   = formComp && formComp.querySelector('add-to-cart-component');
+
+
+    if (!track || slides.length === 0 || !priceEl) return;
+
+    let currentIndex = 0;
+    let currentVariant = product.selected_or_first_available_variant || product.variants[0];
+    let selectedOptions = currentVariant ? currentVariant.options.slice() : [];
+
+    function updateNavButtons() {
+      if (prevBtn) {
+        prevBtn.disabled = (currentIndex === 0);
+      }
+      if (nextBtn) {
+        nextBtn.disabled = (currentIndex === slides.length - 1);
+      }
+    }
+
+    function goTo(index) {
+      // Clamp the index to valid range
+      index = Math.max(0, Math.min(index, slides.length - 1));
+
+      if (index === currentIndex && slides.length > 1) { // Only update if index changed, or if it's the first slide
+          // No need to update transform if already at the target index,
+          // unless it's the very first time and index is 0.
+          // However, we still need to update nav buttons
+      } else {
+        currentIndex = index;
+        const offset = -currentIndex * 100;
+        track.style.transform = 'translateX(' + offset + '%)';
+      }
+      updateNavButtons();
+    }
+
+    function updatePrice(variant) {
+      if (!variant) return;
+      if (window.Shopify && typeof Shopify.formatMoney === 'function') {
+        priceEl.textContent = Shopify.formatMoney(
+          variant.price,
+          "{{ shop.money_format | escape }}"
+        );
+      } else {
+        priceEl.textContent = (variant.price / 100).toFixed(2);
+      }
+    }
+
+    function updateImageForVariant(variant) {
+      if (!variant) return;
+
+      // Use featured_media (OS 2.0) or featured_image as fallback
+      var mediaId = variant.featured_media && variant.featured_media.id;
+      var imageId = variant.featured_image && variant.featured_image.id;
+
+      if (!mediaId && !imageId) return;
+
+      let targetIndex = -1;
+
+      // 1) Try match by media id (for product.media slider)
+      if (mediaId) {
+        targetIndex = slides.findIndex(function(slide) {
+          return String(slide.getAttribute('data-media-id')) === String(mediaId);
+        });
+      }
+
+      // 2) Fallback: try match by image id if you ever add data-image-id
+      if (targetIndex < 0 && imageId) {
+        targetIndex = slides.findIndex(function(slide) {
+          return String(slide.getAttribute('data-image-id')) === String(imageId);
+        });
+      }
+
+      if (targetIndex >= 0) {
+        goTo(targetIndex);
+      }
+    }
+
+    function setActiveButtons() {
+      optionButtons.forEach(function(btn) {
+        var idx = Number(btn.getAttribute('data-option-index'));
+        var value = btn.getAttribute('data-option-value');
+        if (selectedOptions[idx] === value) {
+          btn.classList.add('is-active');
+        } else {
+          btn.classList.remove('is-active');
+        }
+      });
+    }
+
+    function applyVariant(variant) {
+      if (!variant) return;
+
+      currentVariant = variant;
+      selectedOptions = variant.options ? variant.options.slice() : selectedOptions;
+
+      // Price
+      updatePrice(variant);
+
+      // Image (slider)
+      updateImageForVariant(variant);
+
+      // Variant ID text
+      if (variantIdDisplay) {
+        variantIdDisplay.textContent = variant.id;
+      }
+
+      // Hidden input for product-form-component
+      if (variantIdInput) {
+        variantIdInput.value = variant.id;
+      }
+
+      // Add to cart button state
+      if (atcButton) {
+        if (variant.available) {
+          atcButton.disabled = false;
+          // keep “Add to Cart” text; your spans handle screenreader text
+        } else {
+          atcButton.disabled = true;
+        }
+      }
+
+      // Optional: update data-product-variant-media for animation
+      if (atcComponent) {
+        // Try to find matching media src based on featured_media
+        var mediaId = variant.featured_media && variant.featured_media.id;
+        var mediaSrc = null;
+
+        if (mediaId && product.media && product.media.length) {
+          var m = product.media.find(function(m) { return m.id === mediaId; });
+          if (m && m.preview_image && m.preview_image.src) {
+            mediaSrc = m.preview_image.src;
+          }
+        }
+
+        if (mediaSrc) {
+          atcComponent.setAttribute('data-product-variant-media', mediaSrc);
+        }
+      }
+
+      // Debugging
+      root.setAttribute('data-current-variant-id', variant.id);
+    }
+
+
+    // Initial state
+    if (!currentVariant && product.variants && product.variants.length) {
+      currentVariant = product.variants[0];
+      selectedOptions = currentVariant.options.slice();
+    }
+    applyVariant(currentVariant);
+    setActiveButtons();
+    goTo(0); // Initialize slider position and button states
+
+    // Slider controls
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function() {
+        goTo(currentIndex - 1);
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function() {
+        goTo(currentIndex + 1);
+      });
+    }
+
+    // Variant selection logic
+    optionButtons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const optionIndex = Number(btn.getAttribute('data-option-index'));
+        const value = btn.getAttribute('data-option-value');
+
+        selectedOptions[optionIndex] = value;
+        setActiveButtons();
+
+        const matchingVariant = product.variants.find(function(variant) {
+          if (!variant.options) return false;
+          for (let i = 0; i < variant.options.length; i++) {
+            if (variant.options[i] !== selectedOptions[i]) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        if (!matchingVariant) {
+          console.warn('x-handle-product: no matching variant for options', selectedOptions);
+          if (atcButton) {
+            atcButton.disabled = true;
+          }
+          if (variantIdInput) {
+            variantIdInput.value = '';
+          }
+          return;
+        }
+
+        applyVariant(matchingVariant);
+      });
+    });
+  }
+
+  function bootHandleProduct(container) {
+    const roots = (container || document).querySelectorAll('.x-handle-product');
+    roots.forEach(function(root) {
+      initHandleProduct(root);
+    });
+  }
+
+  // Make the boot function available globally for manual triggers (e.g., quick-add modals)
+  window.bootHandleProduct = bootHandleProduct;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    bootHandleProduct(document);
+  });
+
+  // Re-initialize when sections are loaded (e.g., Theme Editor, dynamic content)
+  document.addEventListener('shopify:section:load', function(event) {
+    bootHandleProduct(event.target);
+  });
+
+  // Re-initialize when sections are selected in the Theme Editor
+  document.addEventListener('shopify:section:select', function(event) {
+    bootHandleProduct(event.target);
+  });
+})();
+</script>
+<script>
+(function() {
+  function initHandleModal(container) {
+    const modal = container.querySelector('[data-handle-modal]');
+    const trigger = container.querySelector('[data-handle-product-open]');
+    if (!modal || !trigger) return;
+
+    const dialog = modal.querySelector('.x-handle-product-modal__dialog');
+    const closeEls = modal.querySelectorAll('[data-handle-modal-close]');
+
+    function openModal() {
+      // Spinner state on button
+      trigger.classList.add('is-loading');
+      trigger.disabled = true;
+
+      // Ensure handle script is initialized for this modal content
+      if (window.bootHandleProduct) {
+        window.bootHandleProduct(modal);
+      }
+
+      // Small async tick so CSS has time to apply classes
+      modal.hidden = false;
+      requestAnimationFrame(function() {
+        modal.classList.add('is-open');
+
+        // Remove loading state once modal is "visibly" opening
+        setTimeout(function() {
+          trigger.classList.remove('is-loading');
+          trigger.disabled = false;
+        }, 200);
+
+        // Focus the dialog for accessibility
+        if (dialog) {
+          dialog.setAttribute('tabindex', '-1');
+          dialog.focus({ preventScroll: true });
+        }
+
+        document.documentElement.setAttribute('data-scroll-lock', 'true');
+      });
+    }
+
+    function closeModal() {
+      modal.classList.remove('is-open');
+
+      setTimeout(function() {
+        modal.hidden = true;
+        document.documentElement.removeAttribute('data-scroll-lock');
+        // Return focus to trigger
+        trigger.focus();
+      }, 200);
+    }
+
+    // Open on button click
+    trigger.addEventListener('click', function() {
+      openModal();
+    });
+
+    // Close on backdrop / close button
+    closeEls.forEach(function(el) {
+      el.addEventListener('click', function() {
+        closeModal();
+      });
+    });
+
+    // Close on ESC
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && !modal.hidden) {
+        closeModal();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initHandleModal(document);
+  });
+
+  document.addEventListener('shopify:section:load', function(event) {
+    initHandleModal(event.target);
+  });
+})();
+</script>
