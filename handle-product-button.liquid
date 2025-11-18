@@ -1,14 +1,70 @@
-{% assign product_handle = product_handle | default: 'silky-patterned-long-kimono' %}
-{% assign product = all_products[product_handle] %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Product Trigger Button</title>
+  <style>
+    .x-handle-product-trigger {
+      appearance: none;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #111827, #1f2937);
+      color: #ffffff;
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 120ms ease, box-shadow 180ms ease, opacity 150ms ease;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
 
-{% if product %}
+    .x-handle-product-trigger:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+    }
+
+    .x-handle-product-trigger:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+    }
+
+    .x-handle-product-trigger.is-loading {
+      cursor: wait;
+      opacity: 0.8;
+    }
+
+    .x-handle-product-trigger__spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #ffffff;
+      animation: x-spin 900ms linear infinite;
+      display: none;
+    }
+
+    .x-handle-product-trigger.is-loading .x-handle-product-trigger__spinner {
+      display: inline-block;
+    }
+
+    @keyframes x-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  {% assign product_handle = product_handle | default: 'silky-patterned-long-kimono' %}
   <button
     type="button"
     class="x-handle-product-trigger"
     data-handle-product-trigger
-    data-product-handle="{{ product.handle }}"
+    data-product-handle="{{ product_handle }}"
   >
-    <span class="x-handle-product-trigger__label">View details</span>
+    <span class="x-handle-product-trigger__label">View product</span>
     <span class="x-handle-product-trigger__spinner" aria-hidden="true"></span>
   </button>
 
@@ -21,11 +77,11 @@
       }
 
       document.addEventListener('DOMContentLoaded', function() {
-        const triggers = document.querySelectorAll('[data-handle-product-trigger]');
-        const handleMap = new Map();
+        var triggers = document.querySelectorAll('[data-handle-product-trigger]');
+        var handleMap = new Map();
 
         triggers.forEach(function(trigger) {
-          const handle = trigger.getAttribute('data-product-handle');
+          var handle = trigger.getAttribute('data-product-handle');
           if (!handle) return;
 
           handleMap.set(handle, trigger);
@@ -34,24 +90,23 @@
             setLoadingState(trigger, true);
             document.dispatchEvent(
               new CustomEvent('handleProduct:open', {
-                detail: { handle: handle, trigger: trigger },
-                bubbles: true,
+                detail: { handle: handle },
+                bubbles: true
               })
             );
           });
         });
 
-        function handleResolution(event) {
-          if (!event.detail) return;
-          const trigger = handleMap.get(event.detail.handle);
-          if (trigger) {
-            setLoadingState(trigger, false);
-          }
+        function releaseSpinner(event) {
+          if (!event.detail || !event.detail.handle) return;
+          var trigger = handleMap.get(event.detail.handle);
+          if (trigger) setLoadingState(trigger, false);
         }
 
-        document.addEventListener('handleProduct:opened', handleResolution);
-        document.addEventListener('handleProduct:failed', handleResolution);
+        document.addEventListener('handleProduct:opened', releaseSpinner);
+        document.addEventListener('handleProduct:failed', releaseSpinner);
       });
     })();
   </script>
-{% endif %}
+</body>
+</html>
