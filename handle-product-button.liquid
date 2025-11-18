@@ -1,0 +1,57 @@
+{% assign product_handle = product_handle | default: 'silky-patterned-long-kimono' %}
+{% assign product = all_products[product_handle] %}
+
+{% if product %}
+  <button
+    type="button"
+    class="x-handle-product-trigger"
+    data-handle-product-trigger
+    data-product-handle="{{ product.handle }}"
+  >
+    <span class="x-handle-product-trigger__label">View details</span>
+    <span class="x-handle-product-trigger__spinner" aria-hidden="true"></span>
+  </button>
+
+  <script>
+    (function() {
+      function setLoadingState(trigger, isLoading) {
+        if (!trigger) return;
+        trigger.classList.toggle('is-loading', Boolean(isLoading));
+        trigger.disabled = Boolean(isLoading);
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        const triggers = document.querySelectorAll('[data-handle-product-trigger]');
+        const handleMap = new Map();
+
+        triggers.forEach(function(trigger) {
+          const handle = trigger.getAttribute('data-product-handle');
+          if (!handle) return;
+
+          handleMap.set(handle, trigger);
+
+          trigger.addEventListener('click', function() {
+            setLoadingState(trigger, true);
+            document.dispatchEvent(
+              new CustomEvent('handleProduct:open', {
+                detail: { handle: handle, trigger: trigger },
+                bubbles: true,
+              })
+            );
+          });
+        });
+
+        function handleResolution(event) {
+          if (!event.detail) return;
+          const trigger = handleMap.get(event.detail.handle);
+          if (trigger) {
+            setLoadingState(trigger, false);
+          }
+        }
+
+        document.addEventListener('handleProduct:opened', handleResolution);
+        document.addEventListener('handleProduct:failed', handleResolution);
+      });
+    })();
+  </script>
+{% endif %}

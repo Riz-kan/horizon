@@ -1,19 +1,9 @@
-{% assign product = all_products['silky-patterned-long-kimono'] %}
+{% assign product_handle = product_handle | default: 'silky-patterned-long-kimono' %}
+{% assign product = all_products[product_handle] %}
 
 {% if product %}
-  {%- comment -%} TRIGGER BUTTON (opens popup) {%- endcomment -%}
-  <button
-    type="button"
-    class="x-handle-product-trigger"
-    data-handle-product-open
-    data-handle-product="{{ product.handle }}"
-  >
-    <span class="x-handle-product-trigger__label">View details</span>
-    <span class="x-handle-product-trigger__spinner" aria-hidden="true"></span>
-  </button>
-
   {%- comment -%} MODAL WRAPPER (hidden by default) {%- endcomment -%}
-  <div class="x-handle-product-modal" data-handle-modal hidden>
+  <div class="x-handle-product-modal" data-handle-modal data-handle-target="{{ product.handle }}" hidden>
     <div class="x-handle-product-modal__backdrop" data-handle-modal-close></div>
 
     <div
@@ -710,74 +700,123 @@
 <script>
 (function() {
   function initHandleModal(container) {
-    const modal = container.querySelector('[data-handle-modal]');
-    const trigger = container.querySelector('[data-handle-product-open]');
-    if (!modal || !trigger) return;
+    const modals = (container || document).querySelectorAll('[data-handle-modal]');
+    if (!modals.length) return;
 
-    const dialog = modal.querySelector('.x-handle-product-modal__dialog');
-    const closeEls = modal.querySelectorAll('[data-handle-modal-close]');
+    modals.forEach(function(modal) {
+      const dialog = modal.querySelector('.x-handle-product-modal__dialog');
+      const closeEls = modal.querySelectorAll('[data-handle-modal-close]');
+      const productHandle = modal.getAttribute('data-handle-target');
+      let lastTrigger = null;
 
-    function openModal() {
-      // Spinner state on button
-      trigger.classList.add('is-loading');
-      trigger.disabled = true;
-
-      // Ensure handle script is initialized for this modal content
-      if (window.bootHandleProduct) {
-        window.bootHandleProduct(modal);
+      function dispatchOpened() {
+        document.dispatchEvent(
+          new CustomEvent('handleProduct:opened', {
+            detail: { handle: productHandle },
+            bubbles: true,
+          })
+        );
       }
 
-      // Small async tick so CSS has time to apply classes
-      modal.hidden = false;
-      requestAnimationFrame(function() {
-        modal.classList.add('is-open');
-
-        // Remove loading state once modal is "visibly" opening
-        setTimeout(function() {
+      function releaseTrigger(trigger) {
+        if (trigger) {
           trigger.classList.remove('is-loading');
           trigger.disabled = false;
-        }, 200);
+        }
+        dispatchOpened();
+      }
 
-        // Focus the dialog for accessibility
-        if (dialog) {
-          dialog.setAttribute('tabindex', '-1');
-          dialog.focus({ preventScroll: true });
+      function openModal(trigger) {
+        if (!productHandle) return;
+
+        lastTrigger =
+          trigger ||
+          lastTrigger ||
+          document.querySelector('[data-handle-product-trigger][data-product-handle="' + productHandle + '"]');
+
+        let hasReleased = false;
+
+        if (lastTrigger) {
+          lastTrigger.classList.add('is-loading');
+          lastTrigger.disabled = true;
         }
 
-        document.documentElement.setAttribute('data-scroll-lock', 'true');
-      });
-    }
+        if (window.bootHandleProduct) {
+          window.bootHandleProduct(modal);
+        }
 
-    function closeModal() {
-      modal.classList.remove('is-open');
+        modal.hidden = false;
+        requestAnimationFrame(function() {
+          modal.classList.add('is-open');
 
-      setTimeout(function() {
-        modal.hidden = true;
-        document.documentElement.removeAttribute('data-scroll-lock');
-        // Return focus to trigger
-        trigger.focus();
-      }, 200);
-    }
+          const onTransitionEnd = function(event) {
+            if (event.target !== modal) return;
+            modal.removeEventListener('transitionend', onTransitionEnd);
+            if (!hasReleased) {
+              hasReleased = true;
+              releaseTrigger(lastTrigger);
+            }
+          };
 
-    // Open on button click
-    trigger.addEventListener('click', function() {
-      openModal();
-    });
+          modal.addEventListener('transitionend', onTransitionEnd);
 
-    // Close on backdrop / close button
-    closeEls.forEach(function(el) {
-      el.addEventListener('click', function() {
-        closeModal();
-      });
-    });
+          setTimeout(function() {
+            modal.removeEventListener('transitionend', onTransitionEnd);
+            if (!hasReleased) {
+              hasReleased = true;
+              releaseTrigger(lastTrigger);
+            }
+          }, 450);
 
-    // Close on ESC
-    document.addEventListener('keydown', function(event) {
-      if (event.key === 'Escape' && !modal.hidden) {
-        closeModal();
+          if (dialog) {
+            dialog.setAttribute('tabindex', '-1');
+            dialog.focus({ preventScroll: true });
+          }
+
+          document.documentElement.setAttribute('data-scroll-lock', 'true');
+        });
       }
+
+      function closeModal() {
+        modal.classList.remove('is-open');
+
+        setTimeout(function() {
+          modal.hidden = true;
+          document.documentElement.removeAttribute('data-scroll-lock');
+          if (lastTrigger) {
+            lastTrigger.focus();
+          }
+        }, 200);
+      }
+
+      document.addEventListener('handleProduct:open', function(event) {
+        if (!event.detail || event.detail.handle !== productHandle) return;
+        openModal(event.detail.trigger);
+      });
+
+      closeEls.forEach(function(el) {
+        el.addEventListener('click', function() {
+          closeModal();
+        });
+      });
     });
   }
+
+  document.addEventListener('keydown', function(event) {
+    const openModalEl = document.querySelector('[data-handle-modal].is-open');
+    if (event.key === 'Escape' && openModalEl) {
+      openModalEl.classList.remove('is-open');
+      setTimeout(function() {
+        openModalEl.hidden = true;
+        document.documentElement.removeAttribute('data-scroll-lock');
+        const handle = openModalEl.getAttribute('data-handle-target');
+        const trigger = document.querySelector('[data-handle-product-trigger][data-product-handle="' + handle + '"]');
+        if (trigger) {
+          trigger.focus();
+        }
+      }, 200);
+    }
+  });
 
   document.addEventListener('DOMContentLoaded', function() {
     initHandleModal(document);
